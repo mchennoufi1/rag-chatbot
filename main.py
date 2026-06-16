@@ -2,7 +2,7 @@ import os
 import json
 import shutil
 from typing import List, Optional
-
+from fastapi.responses import FileResponse as FileDownloadResponse
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
@@ -48,6 +48,21 @@ class Question(BaseModel):
 
 
 # ── Routes ───────────────────────────────────────────
+
+
+@app.get("/download/{filename}")
+def download_file(filename: str, api_key: str = ""):
+    if api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+    filepath = os.path.join(UPLOAD_DIR, filename)
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileDownloadResponse(
+        filepath,
+        media_type="application/pdf",
+        filename=filename,
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 @app.get("/")
 def root():
     return {"status": "AI Support Chatbot is running"}
