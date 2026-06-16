@@ -2,17 +2,12 @@ import os
 import shutil
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
 from rag import process_and_store_pdf, ask_question
 from utils.converter import jpeg_to_pdf, csv_to_pdf
-
-from fastapi.responses import FileResponse
-
-@app.get("/ui")
-def ui():
-    return FileResponse("index.html")
 
 load_dotenv()
 
@@ -82,3 +77,8 @@ async def convert_csv(file: UploadFile = File(...)):
     csv_to_pdf(csv_path, pdf_path)
     chunks_stored = process_and_store_pdf(pdf_path)
     return {"message": f"Converted and indexed '{file.filename}'", "pdf": os.path.basename(pdf_path), "chunks_stored": chunks_stored}
+
+
+@app.get("/ui")
+def ui():
+    return FileResponse("index.html")
