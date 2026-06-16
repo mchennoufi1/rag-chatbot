@@ -355,7 +355,10 @@ async function sendMessage() {
         if (line.startsWith("data: ") && line !== "data: [DONE]") {
           const data = JSON.parse(line.slice(6));
           fullAnswer += data.text;
-          bubble.innerHTML = fullAnswer.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+          bubble.innerHTML = fullAnswer
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*\*/g, '')
+            .replace(/\n/g, '<br>');
           document.getElementById("messages").scrollTop =
             document.getElementById("messages").scrollHeight;
         }
