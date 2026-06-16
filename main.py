@@ -8,6 +8,12 @@ from dotenv import load_dotenv
 from rag import process_and_store_pdf, ask_question
 from utils.converter import jpeg_to_pdf, csv_to_pdf
 
+from fastapi.responses import FileResponse
+
+@app.get("/ui")
+def ui():
+    return FileResponse("index.html")
+
 load_dotenv()
 
 app = FastAPI(title="AI Support Chatbot")
