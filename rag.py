@@ -45,7 +45,7 @@ def process_and_store_pdf(filepath: str):
     return len(chunks)
 
 
-def ask_question(query: str) -> dict:
+def ask_question(query: str, history: list = []) -> dict:
     query_embedding = voyage.embed([query], model="voyage-3", input_type="query").embeddings[0]
 
     results = index.query(vector=query_embedding, top_k=3, include_metadata=True)
@@ -54,19 +54,28 @@ def ask_question(query: str) -> dict:
     sources = list(set(match["metadata"]["source"] for match in results["matches"]))
     context = "\n\n".join(context_chunks)
 
-    message = claude.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=1024,
-        messages=[{
-            "role": "user",
-            "content": f"""Answer the question based only on the context below.
+    # Build message history for Claude
+    messages = []
+    for msg in history:
+        messages.append({"role": msg.role, "content": msg.content})
+
+    # Add current question with context
+    messages.append({
+        "role": "user",
+        "content": f"""Answer the question based only on the context below.
 If the answer isn't in the context, say "I don't have enough information to answer that."
 
 Context:
 {context}
 
 Question: {query}"""
-        }]
+    })
+
+    message = claude.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=1024,
+        system="You are a helpful support assistant. Answer questions based on the provided document context. Be concise and accurate.",
+        messages=messages
     )
 
     return {
