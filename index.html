@@ -237,97 +237,139 @@
 </div>
 
 <script>
-  const API = "https://rag-chatbot-production-028f.up.railway.app";
+const API = "https://rag-chatbot-production-028f.up.railway.app";
+const API_KEY = "my-super-secret-key-123";
+let chatHistory = [];
 
-  function setStatus(msg, color = "#22c55e") {
-    const el = document.getElementById("statusMsg");
-    el.style.color = color;
-    el.textContent = msg;
+function setStatus(msg, color = "#22c55e") {
+  const el = document.getElementById("statusMsg");
+  el.style.color = color;
+  el.textContent = msg;
+}
+
+function addMessage(role, text = "", sources = []) {
+  const messages = document.getElementById("messages");
+  const div = document.createElement("div");
+  div.className = `message ${role}`;
+
+  const avatar = document.createElement("div");
+  avatar.className = `avatar ${role}`;
+  avatar.textContent = role === "ai" ? "AI" : "You";
+
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+  bubble.textContent = text;
+
+  if (sources.length > 0) {
+    const src = document.createElement("div");
+    src.className = "sources";
+    src.textContent = "Sources: " + sources.map(s => s.split("/").pop()).join(", ");
+    bubble.appendChild(src);
   }
 
-  function addMessage(role, text, sources = []) {
-    const messages = document.getElementById("messages");
-    const div = document.createElement("div");
-    div.className = `message ${role}`;
+  div.appendChild(avatar);
+  div.appendChild(bubble);
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+  return bubble;
+}
 
-    const avatar = document.createElement("div");
-    avatar.className = `avatar ${role}`;
-    avatar.textContent = role === "ai" ? "AI" : "You";
+async function uploadPDF() {
+  const file = document.getElementById("pdfInput").files[0];
+  if (!file) return setStatus("Please select a PDF first.", "#f87171");
+  setStatus("Uploading...", "#94a3b8");
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API}/upload/pdf`, {
+    method: "POST", body: form,
+    headers: { "X-API-Key": API_KEY }
+  });
+  const data = await res.json();
+  setStatus(data.message || "Done!");
+}
 
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
-    bubble.textContent = text;
+async function convertJPEG() {
+  const file = document.getElementById("jpegInput").files[0];
+  if (!file) return setStatus("Please select a JPEG first.", "#f87171");
+  setStatus("Converting...", "#94a3b8");
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API}/convert/jpeg-to-pdf`, {
+    method: "POST", body: form,
+    headers: { "X-API-Key": API_KEY }
+  });
+  const data = await res.json();
+  setStatus(data.message || "Done!");
+}
 
-    if (sources.length > 0) {
-      const src = document.createElement("div");
-      src.className = "sources";
-      src.textContent = "Sources: " + sources.map(s => s.split("/").pop()).join(", ");
-      bubble.appendChild(src);
-    }
+async function convertCSV() {
+  const file = document.getElementById("csvInput").files[0];
+  if (!file) return setStatus("Please select a CSV first.", "#f87171");
+  setStatus("Converting...", "#94a3b8");
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API}/convert/csv-to-pdf`, {
+    method: "POST", body: form,
+    headers: { "X-API-Key": API_KEY }
+  });
+  const data = await res.json();
+  setStatus(data.message || "Done!");
+}
 
-    div.appendChild(avatar);
-    div.appendChild(bubble);
-    messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
-    return div;
-  }
+async function sendMessage() {
+  const input = document.getElementById("queryInput");
+  const query = input.value.trim();
+  if (!query) return;
 
-  async function uploadPDF() {
-    const file = document.getElementById("pdfInput").files[0];
-    if (!file) return setStatus("Please select a PDF first.", "#f87171");
-    setStatus("Uploading...", "#94a3b8");
-    const form = new FormData();
-    form.append("file", file);
-    const res = await fetch(`${API}/upload/pdf`, { method: "POST", body: form });
-    const data = await res.json();
-    setStatus(data.message || "Done!");
-  }
+  input.value = "";
+  document.getElementById("sendBtn").disabled = true;
 
-  async function convertJPEG() {
-    const file = document.getElementById("jpegInput").files[0];
-    if (!file) return setStatus("Please select a JPEG first.", "#f87171");
-    setStatus("Converting...", "#94a3b8");
-    const form = new FormData();
-    form.append("file", file);
-    const res = await fetch(`${API}/convert/jpeg-to-pdf`, { method: "POST", body: form });
-    const data = await res.json();
-    setStatus(data.message || "Done!");
-  }
+  addMessage("user", query);
+  chatHistory.push({ role: "user", content: query });
 
-  async function convertCSV() {
-    const file = document.getElementById("csvInput").files[0];
-    if (!file) return setStatus("Please select a CSV first.", "#f87171");
-    setStatus("Converting...", "#94a3b8");
-    const form = new FormData();
-    form.append("file", file);
-    const res = await fetch(`${API}/convert/csv-to-pdf`, { method: "POST", body: form });
-    const data = await res.json();
-    setStatus(data.message || "Done!");
-  }
+  const bubble = addMessage("ai", "");
+  bubble.textContent = "";
 
-  async function sendMessage() {
-    const input = document.getElementById("queryInput");
-    const query = input.value.trim();
-    if (!query) return;
-
-    input.value = "";
-    document.getElementById("sendBtn").disabled = true;
-
-    addMessage("user", query);
-    const typing = addMessage("ai", "Thinking...");
-    typing.classList.add("typing");
-
-    const res = await fetch(`${API}/ask`, {
+  try {
+    const res = await fetch(`${API}/ask/stream`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query })
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": API_KEY
+      },
+      body: JSON.stringify({ query, history: chatHistory.slice(0, -1) })
     });
 
-    const data = await res.json();
-    typing.remove();
-    addMessage("ai", data.answer, data.sources || []);
-    document.getElementById("sendBtn").disabled = false;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let fullAnswer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split("\n");
+
+      for (const line of lines) {
+        if (line.startsWith("data: ") && line !== "data: [DONE]") {
+          const data = JSON.parse(line.slice(6));
+          fullAnswer += data.text;
+          bubble.textContent = fullAnswer;
+          document.getElementById("messages").scrollTop =
+            document.getElementById("messages").scrollHeight;
+        }
+      }
+    }
+
+    chatHistory.push({ role: "assistant", content: fullAnswer });
+
+  } catch (err) {
+    bubble.textContent = "Error: " + err.message;
   }
+
+  document.getElementById("sendBtn").disabled = false;
+}
 </script>
 
 </body>
